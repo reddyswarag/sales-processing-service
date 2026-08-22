@@ -45,7 +45,7 @@ def upload_csv(file : UploadFile = File(...), db: Session = Depends(get_db)):
         new_job.file_path,
         job_id=f"csv-job-{new_job.job_id}",
         unique = True,
-        retry = Retry(max=3, interval = [10,30,60])
+        retry = Retry(max=2, interval = [10,30])
     )
 
     return {
@@ -87,7 +87,9 @@ def get_job(
         "task": job.task,
         "status":job.status,
         "result": job.result,
-        "error" : job.error
+        "error" : job.error,
+        "current_attempt" : job.current_attempt,
+        "max_attempts" : job.max_attempts
     }
 
 @app.get("/jobs", response_model= list[JobResponse])
