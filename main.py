@@ -4,12 +4,17 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Job
 from sqlalchemy import select
-from schemas import JobUpdate, JobRequest, JobResponse
+from schemas import JobRequest, JobResponse, JobStatus
 from pathlib import Path
 import shutil 
 from uuid import uuid4
 from job_queue import csv_queue
 from services.tasks import run_csv_job
+from services.job_state import can_transition
+from rq.job import Job as RQJob
+from rq.exceptions import NoSuchJobError
+from job_queue import redis_connection
+import datetime
 
 app = FastAPI()
 
@@ -62,14 +67,18 @@ def upload_csv(file : UploadFile = File(...), db: Session = Depends(get_db)):
 
 @app.post("/jobs", response_model=JobResponse)
 def create_job(job : JobRequest, db: Session=Depends(get_db)):
-    new_job=Job(task = job.task, status = "pending")
+    new_job=Job(task = job.task, status = JobStatus.PENDING.value)
     db.add(new_job)
     db.commit()
     db.refresh(new_job)
     return {
         "job_id":new_job.job_id,
         "task" : new_job.task,
-        "status" : new_job.status
+        "status" : new_job.status,
+        "result" : new_job.result,
+        "error" : new_job.error,
+        "current_attempt" : new_job.current_attempt,
+        "max_attempts" : new_job.max_attempts
     }
     
 
@@ -101,23 +110,46 @@ def get_jobs( db: Session = Depends(get_db)):
             "task": job.task,
             "status": job.status,
             "result": job.result,
-            "error" : job.error
+            "error" : job.error,
+            "current_attempt" : job.current_attempt,
+            "max_attempts" : job.max_attempts
         } 
         for job in jobs
     ]
     
 
-@app.patch("/jobs/{job_id}", response_model=JobResponse)
-def patch_job(job_id: int, jobupdate : JobUpdate, db : Session = Depends(get_db)):
-    currjob=db.get(Job, job_id)
-    if(currjob is not None):
-        currjob.status=jobupdate.status
-        db.commit()
-        db.refresh(currjob)
-        return currjob
-    else:
-        raise HTTPException(status_code=404,detail= "job not found")
-    
+
+
+@app.post("/jobs/{job_id}/cancel", response_model = JobResponse)
+def cancel_job(job_id : int, db : Session = Depends(get_db)):
+    job = db.scalar(
+        select(Job)
+        .where(Job.job_id == job_id)
+        .with_for_update()
+    )
+
+    if job is None:
+        raise HTTPException(status_code = 404, detail = "job not found")
+
+    current_status = JobStatus(job.status)
+
+    if not can_transition(current_status,JobStatus.CANCELLED):
+        raise HTTPException(status_code = 409, detail = f"cannot transition from {current_status.value} to cancelled")
+
+    try :
+        rq_job=RQJob.fetch(f"csv-job-{job_id}",connection = redis_connection)
+        rq_job.cancel()
+    except NoSuchJobError:
+        pass
+    job.status = JobStatus.CANCELLED.value
+    job.error = None
+    job.completed_at = datetime.datetime.now(datetime.UTC)
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+
 @app.delete("/jobs/{job_id}")
 def delete_job(job_id : int, db : Session = Depends(get_db)):
     job=db.get(Job, job_id)
