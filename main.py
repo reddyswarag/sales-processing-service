@@ -19,6 +19,8 @@ import datetime
 app = FastAPI()
 
 UPLOAD_DIR = Path("uploads")
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
 
 
 
@@ -32,6 +34,19 @@ def upload_csv(file : UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="only .csv files are accepted")
 
+    file.file.seek(0,2)
+    file_size = file.file.tell()
+    file.file.seek(0)
+
+    if file_size == 0 :
+        raise HTTPException(status_code=400, detail= "empty files are not allowed")
+
+    if file_size > MAX_FILE_SIZE :
+        raise HTTPException(status_code = 413, detail = "file size exceeds the maximum limit")
+    
+
+    
+    
     UPLOAD_DIR.mkdir(exist_ok=True)
     safe_filename=Path(file.filename).name
     stored_filename = f"{uuid4().hex}_{safe_filename}"
