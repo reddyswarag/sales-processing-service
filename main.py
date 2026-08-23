@@ -15,6 +15,8 @@ from rq.job import Job as RQJob
 from rq.exceptions import NoSuchJobError
 from job_queue import redis_connection
 import datetime
+from redis.exceptions import ConnectionError
+from sqlalchemy.exc import SQLAlchemyError
 
 app = FastAPI()
 
@@ -54,19 +56,34 @@ def upload_csv(file : UploadFile = File(...), db: Session = Depends(get_db)):
     with file_path.open("wb") as destination:
         shutil.copyfileobj(file.file, destination)
 
-    new_job=Job(task= "upload_csv", status = "pending", file_path = str(file_path), result=None, error=None)
-    db.add(new_job)
-    db.commit()
+    new_job=Job(task= "upload_csv", status = JobStatus.PENDING.value, file_path = str(file_path), result=None, error=None)
+    try:
+        db.add(new_job)
+        db.commit()
+    except SQLAlchemyError :
+        db.rollback()
+        if file_path.exists():
+            file_path.unlink()
+
+        raise HTTPException(status_code = 500, detail = "internal server error")
+
     db.refresh(new_job)
 
-    rq_job = csv_queue.enqueue(
-        run_csv_job,
-        new_job.job_id,
-        new_job.file_path,
-        job_id=f"csv-job-{new_job.job_id}",
-        unique = True,
-        retry = Retry(max=2, interval = [10,30])
-    )
+    try: 
+        rq_job = csv_queue.enqueue(
+                    run_csv_job,
+                    new_job.job_id,
+                    new_job.file_path,
+                    job_id=f"csv-job-{new_job.job_id}",
+                    unique = True,
+                    retry = Retry(max=2, interval = [10,30])
+                )
+    except ConnectionError as exc: 
+        new_job.status = JobStatus.FAILED.value
+        new_job.error = f"failed to enqueue job: {exc}"
+        db.commit()
+
+        raise HTTPException(status_code = 503, detail = "job could not be queued")
 
     return {
         "job_id" : new_job.job_id,
@@ -155,6 +172,8 @@ def cancel_job(job_id : int, db : Session = Depends(get_db)):
         rq_job=RQJob.fetch(f"csv-job-{job_id}",connection = redis_connection)
         rq_job.cancel()
     except NoSuchJobError:
+        pass
+    except ConnectionError:
         pass
     job.status = JobStatus.CANCELLED.value
     job.error = None

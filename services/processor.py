@@ -63,6 +63,9 @@ def process_csv(file_path : str):
             seen_rows.add(row_key)
             total_revenue += quantity * price
 
+        if rows_recieved == 0:
+            raise PermanentCSVError("CSV contains no data rows")
+    
     processing_time_ms = round(
         (time.perf_counter() - start_time) * 1000,2
     )
