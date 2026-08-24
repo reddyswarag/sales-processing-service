@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: swaragreddy
+      POSTGRES_PASSWORD: project1password
+      POSTGRES_DB: project1
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+
+  api:
+    build: .
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://swaragreddy:project1password@postgres:5432/project1
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      MAX_FILE_SIZE: 52428800
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - uploads_data:/app/uploads
+
+  worker:
+    build: .
+    command: rq worker csv --with-scheduler
+    environment:
+      DATABASE_URL: postgresql+psycopg://swaragreddy:project1password@postgres:5432/project1
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      MAX_FILE_SIZE: 52428800
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  postgres_data:
+  uploads_data:
