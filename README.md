@@ -61,6 +61,27 @@ PostgreSQL is the source of truth for job lifecycle state, while Redis/RQ handle
 - Environment-based configuration
 - Automated processor and API validation tests
 
+## Demo
+
+### REST API
+
+FastAPI exposes endpoints for CSV ingestion, job retrieval, lifecycle management, deletion, and cancellation.
+
+![REST API Endpoints](assets/images/api-endpoints.png)
+
+### Real-World Dataset Processing
+
+Processed 541,909 retail records in approximately 1.33 seconds of processor execution time.
+
+![Processing Benchmark](assets/images/benchmark-result.png)
+
+### Dockerized Services
+
+The API, RQ worker, PostgreSQL, and Redis run as separate services using Docker Compose.
+
+![Docker Services](assets/images/docker-services.png)
+
+
 ## Job Lifecycle
 
 ```text
@@ -172,7 +193,7 @@ The service was tested using the UCI Online Retail dataset containing 541,909 tr
 
 For resume-level reporting, the conservative benchmark is approximately **400K rows/sec**.
 
-The throughput measurement represents CSV processor execution time and does not include HTTP upload time, queue waiting time, or other end-to-end infrastructure latency.
+The throughput measurement represents CSV processor execution time and does not include HTTP upload time, queue waiting time, or other end to end infrastructure latency.
 
 ## Testing
 
