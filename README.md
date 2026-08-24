@@ -67,19 +67,19 @@ PostgreSQL is the source of truth for job lifecycle state, while Redis/RQ handle
 
 FastAPI exposes endpoints for CSV ingestion, job retrieval, lifecycle management, deletion, and cancellation.
 
-![REST API Endpoints](assets/images/api-endpoints.png)
+![REST API Endpoints](assets/screenshots/api-endpoints.png)
 
 ### Real-World Dataset Processing
 
 Processed 541,909 retail records in approximately 1.33 seconds of processor execution time.
 
-![Processing Benchmark](assets/images/benchmark-result.png)
+![Processing Benchmark](assets/screenshots/benchmark-result.png)
 
 ### Dockerized Services
 
 The API, RQ worker, PostgreSQL, and Redis run as separate services using Docker Compose.
 
-![Docker Services](assets/images/docker-services.png)
+![Docker Services](assets/screenshots/docker-services.png)
 
 
 ## Job Lifecycle
