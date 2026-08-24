@@ -195,6 +195,21 @@ For resume-level reporting, the conservative benchmark is approximately **400K r
 
 The throughput measurement represents CSV processor execution time and does not include HTTP upload time, queue waiting time, or other end to end infrastructure latency.
 
+## Dataset
+
+Performance testing used the [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online%2Bretail), which contains 541,909 retail transaction records.
+
+For this project, the following source columns were mapped to the CSV schema expected by the service:
+
+| UCI Column | Service Column |
+|---|---|
+| CustomerID | customer_id |
+| Description | product |
+| Quantity | quantity |
+| UnitPrice | price |
+
+The raw dataset is not committed to this repository. Download `Online Retail.xlsx` from UCI and convert it to CSV before running the benchmark.
+
 ## Testing
 
 Run:
