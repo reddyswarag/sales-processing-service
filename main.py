@@ -17,11 +17,12 @@ from job_queue import redis_connection
 import datetime
 from redis.exceptions import ConnectionError
 from sqlalchemy.exc import SQLAlchemyError
+from config import MAX_FILE_SIZE
 
 app = FastAPI()
 
 UPLOAD_DIR = Path("uploads")
-MAX_FILE_SIZE = 50 * 1024 * 1024
+
 
 
 
